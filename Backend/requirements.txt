@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+alembic
+pydantic-settings
+pandas
+numpy
+scikit-learn
+xgboost
+mlflow
+requests
+python-dateutil
+pytest
+httpx
+geopy
+shap

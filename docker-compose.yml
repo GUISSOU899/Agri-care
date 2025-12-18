@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: agricare
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: 
+      context: ./Backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://root:password@db:3306/agricare
+    volumes:
+      - ./Backend:/app
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
+
+  etl:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://root:password@db:3306/agricare
+      NASA_POWER_BASE_URL: https://power.larc.nasa.gov/api/temporal/daily
+    # Run migrations then ETL loop
+    command: sh -c "alembic upgrade head && while true; do python -m app.etl.run_etl; echo 'ETL sleeping...'; sleep 86400; done"
+    volumes:
+      - ./Backend:/app
+  
+  ml:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql+pymysql://root:password@db:3306/agricare
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-./mlruns}
+    command: sh -c "while true; do sleep 86400; done"
+    volumes:
+      - ./Backend:/app
+
+volumes:
+  db_data:
