@@ -40,7 +40,7 @@ def test_create_default_crops():
         crops = db.query(Crop).all()
         assert len(crops) >= 4
         
-        wheat = db.query(Crop).filter_by(code="wheat").first()
+        wheat = db.query(Crop).filter_by(name="Wheat").first()
         assert wheat is not None
         
     finally:

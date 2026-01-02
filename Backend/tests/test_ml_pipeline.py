@@ -6,7 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db.session import Base
-from app.models.weather import Region, WeatherDaily
+from app.models.region import Region
+from app.models.weather import WeatherDaily
 from app.models.yield_data import YieldHistory
 from app.ml.data_loader import load_training_data
 from app.ml.features import prepare_features

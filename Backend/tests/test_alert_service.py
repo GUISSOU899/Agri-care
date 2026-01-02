@@ -19,6 +19,15 @@ def test_alert_generation():
         if not region or not crop:
             return # Skip if DB empty
             
+        # Cleanup potential previous run data
+        target_date = date.today() + timedelta(days=5)
+        existing_f = db.query(Forecast).filter_by(
+            region_id=region.id, crop_id=crop.id, date=target_date
+        ).first()
+        if existing_f:
+            db.delete(existing_f)
+            db.commit()
+            
         # Create a "HEAT WAVE" forecast
         heat_forecast = Forecast(
             region_id=region.id,

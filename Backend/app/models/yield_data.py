@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.session import Base
+from app.db.base_class import Base
 
 class YieldHistory(Base):
     __tablename__ = "yield_history"

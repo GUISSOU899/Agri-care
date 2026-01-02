@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, Float, Date, ForeignKey
 from sqlalchemy.orm import relationship
-from app.db.session import Base
+from app.db.base_class import Base
 
 class WeatherDaily(Base):
     __tablename__ = "weather_daily"

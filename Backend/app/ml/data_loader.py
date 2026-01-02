@@ -1,7 +1,8 @@
 import pandas as pd
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
-from app.models.weather import WeatherDaily, Region
+from app.models.weather import WeatherDaily
+from app.models.region import Region
 from app.models.yield_data import YieldHistory
 
 def load_weather_data(region_ids: list[int]) -> pd.DataFrame:

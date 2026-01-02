@@ -1,10 +1,22 @@
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
-from pydantic import BaseModel
 
 class CropBase(BaseModel):
-    name: str
-    code: str
-    description: Optional[str] = None
+    name: str = Field(..., max_length=100)
+    type: str
+    variety: Optional[str] = None
+    water_need: float = Field(..., ge=0)
+    temp_low: float
+    temp_high: float
+    rain_threshold: float = Field(..., gt=0)
+
+    @field_validator('temp_low')
+    @classmethod
+    def low_must_be_lt_high(cls, v, info):
+        values = info.data
+        if 'temp_high' in values and v >= values['temp_high']:
+            raise ValueError('temp_low must be lower than temp_high')
+        return v
 
 class CropCreate(CropBase):
     pass
@@ -12,5 +24,4 @@ class CropCreate(CropBase):
 class CropRead(CropBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

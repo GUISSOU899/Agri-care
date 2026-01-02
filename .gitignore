@@ -11,3 +11,16 @@ node_modules/
 dist/
 build/
 *.log
+
+# ML artifacts / datasets (ne pas versionner)
+Backend/app/ml/artifacts/
+Backend/app/ml/data/
+mlruns/
+
+# Python caches
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# Env
+.env
