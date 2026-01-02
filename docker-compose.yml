@@ -12,13 +12,19 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
   api:
-    build: 
+    build:
       context: ./Backend
       dockerfile: Dockerfile
     ports:
@@ -26,9 +32,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     environment:
       DATABASE_URL: mysql+pymysql://root:password@db:3306/agricare
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - ./Backend:/app
 
@@ -52,15 +61,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     environment:
       DATABASE_URL: mysql+pymysql://root:password@db:3306/agricare
       NASA_POWER_BASE_URL: https://power.larc.nasa.gov/api/temporal/daily
+      REDIS_URL: redis://redis:6379/0
     # Run migrations then ETL loop
     command: sh -c "alembic upgrade head && while true; do python -m app.etl.run_etl; echo 'ETL sleeping...'; sleep 86400; done"
     volumes:
       - ./Backend:/app
-  
+
   ml:
     build:
       context: ./Backend
@@ -68,10 +80,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
     environment:
       DATABASE_URL: mysql+pymysql://root:password@db:3306/agricare
       MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI:-./mlruns}
+      REDIS_URL: redis://redis:6379/0
     command: sh -c "while true; do sleep 86400; done"
     volumes:
       - ./Backend:/app

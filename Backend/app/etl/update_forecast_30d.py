@@ -88,9 +88,10 @@ def update_forecasts_30d():
                     if f_date in real_forecasts:
                         data = real_forecasts[f_date]
                         source = "api"
-                        tmin, tmax, rain_val = data["tmin"], data["tmax"], data["rain"]
-                        tmean = data["tmean"]
-                        et = data["et"] if data["et"] is not None else (tmean / 5.0)
+                        tmin, tmax = data["tmin"], data["tmax"]
+                        rain_val = data["rain"] if data["rain"] is not None else 0.0
+                        tmean = data["tmean"] if data["tmean"] is not None else 20.0
+                        et = data["et"] if data.get("et") is not None else (tmean / 5.0)
                     else:
                         # Estimation
                         source = "estimation"
@@ -101,16 +102,20 @@ def update_forecasts_30d():
                         alpha = min(1.0, max(0.0, gap / 14.0)) if gap > 0 else 1.0
                         
                         if not clim:
-                            tmin = (1 - alpha) * anchor["tmin"] + alpha * 10
-                            tmax = (1 - alpha) * anchor["tmax"] + alpha * 20
+                            anchor_tmin = anchor.get("tmin") or 15
+                            anchor_tmax = anchor.get("tmax") or 25
+                            tmin = (1 - alpha) * anchor_tmin + alpha * 10
+                            tmax = (1 - alpha) * anchor_tmax + alpha * 20
                             rain_val = 0
                         else:
-                            tmin = (1 - alpha) * anchor["tmin"] + alpha * clim.tmin_c
-                            tmax = (1 - alpha) * anchor["tmax"] + alpha * clim.tmax_c
-                            rain_val = clim.rainfall_mm
+                            anchor_tmin = anchor.get("tmin") or 15
+                            anchor_tmax = anchor.get("tmax") or 25
+                            tmin = (1 - alpha) * anchor_tmin + alpha * (clim.tmin_c or 10)
+                            tmax = (1 - alpha) * anchor_tmax + alpha * (clim.tmax_c or 20)
+                            rain_val = clim.rainfall_mm or 0
                         
                         tmean = (tmin + tmax) / 2
-                        et = (tmean / 5.0)
+                        et = (tmean / 5.0) if tmean is not None else 4.0
                     
                     # Store rain for rolling features
                     rain_history.append(rain_val)

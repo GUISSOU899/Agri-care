@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Region } from '@/types';
-import { Plus, Trash2, MapPin } from 'lucide-react';
+import { Upload, FileText, Play, Save, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export default function AdminRegions() {
     const [regions, setRegions] = useState<Region[]>([]);
-    const [formData, setFormData] = useState({ name: '', latitude: '', longitude: '' });
-    const [loading, setLoading] = useState(false);
-    const [msg, setMsg] = useState('');
+    const [file, setFile] = useState<File | null>(null);
+    const [previewData, setPreviewData] = useState<any[]>([]);
+    const [uploading, setUploading] = useState(false);
+    const [etlStatus, setEtlStatus] = useState<string | null>(null);
 
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -24,103 +25,205 @@ export default function AdminRegions() {
 
     useEffect(() => {
         fetchRegions();
-    }, [API_BASE_URL]);
+    }, []);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const f = e.target.files[0];
+            setFile(f);
+
+            // Simple Client-side preview
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                const text = evt.target?.result as string;
+                const lines = text.split('\n');
+                if (lines.length > 0) {
+                    const headers = lines[0].split(',');
+                    const data = lines.slice(1, 6).map(line => { // Preview first 5 lines
+                        // Handle potential empty lines
+                        if (!line.trim()) return null;
+                        const values = line.split(',');
+                        return headers.reduce((obj, header, index) => {
+                            if (header) obj[header.trim()] = values[index]?.trim();
+                            return obj;
+                        }, {} as any);
+                    }).filter(Boolean);
+                    setPreviewData(data);
+                }
+            };
+            reader.readAsText(f);
+        }
+    };
+
+    const handleUpload = async () => {
+        if (!file) return;
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
         try {
-            await axios.post(`${API_BASE_URL}/regions/`, {
-                name: formData.name,
-                latitude: parseFloat(formData.latitude),
-                longitude: parseFloat(formData.longitude)
+            // Pointing to the endpoint specified in the plan
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            await axios.post(`${API_BASE_URL}/admin/upload/regions-csv`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${token}` }
             });
-            setMsg('Region created successfully!');
-            setFormData({ name: '', latitude: '', longitude: '' });
-            fetchRegions();
+            alert('Fichier uploadé avec succès ! Vous pouvez maintenant lancer l\'ETL.');
         } catch (err) {
             console.error(err);
-            setMsg('Error creating region.');
+            alert('Erreur lors de l\'upload.');
         } finally {
-            setLoading(false);
+            setUploading(false);
+        }
+    };
+
+    const runEtl = async () => {
+        setEtlStatus('running');
+        try {
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            // Assuming endpoint /admin/etl/run exists as per plan
+            await axios.post(`${API_BASE_URL}/admin/etl/run`, { type: 'regions' }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setEtlStatus('success');
+            fetchRegions(); // Refresh list
+        } catch (err) {
+            console.error(err);
+            setEtlStatus('error');
         }
     };
 
     return (
         <div>
             <h1 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <MapPin /> Manage Regions
+                <FileText /> Gestion des Régions (CSV)
             </h1>
 
-            {/* Create Form */}
-            <div className="bg-gray-50 p-6 rounded-lg mb-8 border border-gray-200">
-                <h3 className="font-semibold mb-4 text-gray-700">Add New Region</h3>
-                <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 items-end">
-                    <div className="flex-1 w-full">
-                        <label className="block text-sm font-medium mb-1">Name</label>
+            {/* CSV Workflow */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                {/* Upload Section */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                        1. Upload CSV
+                    </h3>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-green-500 transition-colors relative">
                         <input
-                            type="text"
-                            required
-                            className="w-full p-2 border rounded"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            type="file"
+                            accept=".csv"
+                            onChange={handleFileChange}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
+                        <div className="flex flex-col items-center gap-2 pointer-events-none">
+                            <Upload className="h-10 w-10 text-gray-400" />
+                            <span className="text-sm text-gray-600 font-medium">Cliquer pour choisir un fichier regions.csv</span>
+                        </div>
                     </div>
-                    <div className="w-full md:w-32">
-                        <label className="block text-sm font-medium mb-1">Lat</label>
-                        <input
-                            type="number" step="any" required
-                            className="w-full p-2 border rounded"
-                            value={formData.latitude}
-                            onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                        />
+                    {file && <p className="mt-2 text-sm text-center text-green-600 font-semibold">{file.name}</p>}
+
+                    {file && previewData.length > 0 && (
+                        <div className="mt-4">
+                            <h4 className="text-sm font-semibold mb-2 text-gray-500">Aperçu (5 premières lignes)</h4>
+                            <div className="bg-gray-50 p-2 rounded text-xs overflow-x-auto">
+                                <table className="min-w-full">
+                                    <thead>
+                                        <tr>
+                                            {Object.keys(previewData[0]).map(h => (
+                                                <th key={h} className="text-left p-1 border-b font-medium text-gray-600">{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {previewData.map((row, i) => (
+                                            <tr key={i}>
+                                                {Object.values(row).map((v: any, j) => (
+                                                    <td key={j} className="p-1 border-b text-gray-700">{v}</td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <button
+                                onClick={handleUpload}
+                                disabled={uploading}
+                                className="mt-4 w-full bg-blue-600 text-white py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-700 font-medium transition-colors"
+                            >
+                                <Save size={18} /> {uploading ? 'Envoi...' : 'Enregistrer le fichier'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* ETL Actions */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between">
+                    <div>
+                        <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                            2. Traitement ETL
+                        </h3>
+                        <p className="text-gray-600 text-sm mb-6">
+                            Une fois le fichier "regions.csv" enregistré sur le serveur, lancez le pipeline ETL pour mettre à jour la base de données PostgreSQL.
+                        </p>
+
+                        {etlStatus === 'running' && (
+                            <div className="bg-blue-50 text-blue-800 p-4 rounded-lg flex items-center gap-3 mb-4 border border-blue-100">
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-800"></div>
+                                Traitement en cours...
+                            </div>
+                        )}
+                        {etlStatus === 'success' && (
+                            <div className="bg-green-50 text-green-800 p-4 rounded-lg flex items-center gap-3 mb-4 border border-green-100">
+                                <CheckCircle className="h-5 w-5" />
+                                ETL terminé avec succès. Base de données mise à jour.
+                            </div>
+                        )}
+                        {etlStatus === 'error' && (
+                            <div className="bg-red-50 text-red-800 p-4 rounded-lg flex items-center gap-3 mb-4 border border-red-100">
+                                <AlertTriangle className="h-5 w-5" />
+                                Erreur lors de l'exécution de l'ETL. Vérifiez les logs.
+                            </div>
+                        )}
                     </div>
-                    <div className="w-full md:w-32">
-                        <label className="block text-sm font-medium mb-1">Lon</label>
-                        <input
-                            type="number" step="any" required
-                            className="w-full p-2 border rounded"
-                            value={formData.longitude}
-                            onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                        />
-                    </div>
+
                     <button
-                        type="submit"
-                        disabled={loading}
-                        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2"
+                        onClick={runEtl}
+                        disabled={etlStatus === 'running'}
+                        className="w-full bg-green-600 text-white py-3 rounded-lg font-bold text-lg flex items-center justify-center gap-2 hover:bg-green-700 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Plus size={18} /> {loading ? 'Saving...' : 'Add'}
+                        <Play size={24} /> Lancer ETL Regions
                     </button>
-                </form>
-                {msg && <p className="mt-2 text-sm text-blue-600">{msg}</p>}
+                </div>
             </div>
 
-            {/* List */}
-            <div className="overflow-x-auto">
-                <table className="min-w-full bg-white border border-gray-200">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                            <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                            <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                            <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                        {regions.map((r) => (
-                            <tr key={r.id}>
-                                <td className="py-3 px-4 text-sm text-gray-900">#{r.id}</td>
-                                <td className="py-3 px-4 text-sm font-medium text-gray-900">{r.name}</td>
-                                <td className="py-3 px-4 text-sm text-gray-500">{r.latitude}, {r.longitude}</td>
-                                <td className="py-3 px-4 text-sm">
-                                    <button className="text-red-500 hover:text-red-700 opacity-50 cursor-not-allowed" title="Delete not implemented">
-                                        <Trash2 size={18} />
-                                    </button>
-                                </td>
+            {/* Existing Data List */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-semibold text-lg">Données en base ({regions.length})</h3>
+                    <button
+                        onClick={fetchRegions}
+                        className="text-sm text-gray-500 hover:text-green-600"
+                    >
+                        Actualiser
+                    </button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Nom</th>
+                                <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase">Coordonnées (Lat, Lon)</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                            {regions.map((r) => (
+                                <tr key={r.id}>
+                                    <td className="py-3 px-4 text-sm text-gray-900">#{r.id}</td>
+                                    <td className="py-3 px-4 text-sm font-medium text-gray-900">{r.name}</td>
+                                    <td className="py-3 px-4 text-sm text-gray-500">{r.latitude}, {r.longitude}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

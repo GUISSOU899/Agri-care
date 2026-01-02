@@ -14,3 +14,5 @@ from app.api.routers import analysis
 api_router.include_router(analysis.router, prefix="/analysis", tags=["analysis"])
 from app.api.routers import auth
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+from app.api.routers import admin
+api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
