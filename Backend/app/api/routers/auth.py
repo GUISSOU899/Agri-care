@@ -60,7 +60,12 @@ def register_user(
     db.commit()
     db.refresh(db_user)
     return db_user
+from app.api.deps import get_current_active_superuser
+
 @router.get("/users/", response_model=List[UserRead])
-def list_users(db: Session = Depends(get_db)):
+def list_users(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_active_superuser)
+):
     """Return list of all registered users."""
     return db.query(User).all()

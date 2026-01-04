@@ -19,12 +19,8 @@ export default function AdminML() {
             });
             setRuns(res.data);
         } catch (err) {
-            // Mock data
-            setRuns([
-                { id: 'run_103', date: '2026-01-01 14:30', status: 'Success', accuracy: '94%', model: 'RandomForest' },
-                { id: 'run_102', date: '2025-12-28 09:15', status: 'Success', accuracy: '92%', model: 'RandomForest' },
-                { id: 'run_101', date: '2025-12-25 18:00', status: 'Failed', accuracy: '-', model: 'XGBoost' },
-            ]);
+            console.error("Error fetching runs:", err);
+            setRuns([]);
         }
     };
 
@@ -50,7 +46,7 @@ export default function AdminML() {
             setTimeout(() => {
                 setTraining(false);
                 fetchRuns();
-            }, 1000);
+            }, 3000);
         } catch (err) {
             clearInterval(interval);
             setTraining(false);

@@ -60,7 +60,7 @@ export default function AdminSystem() {
                         <div className="flex justify-between items-center p-3 border-b last:border-0">
                             <div className="flex items-center gap-3">
                                 <Database size={18} className="text-gray-400" />
-                                <span className="text-gray-700">PostgreSQL Database</span>
+                                <span className="text-gray-700">MySQL Database</span>
                             </div>
                             <StatusBadge status={health?.db} />
                         </div>

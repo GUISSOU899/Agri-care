@@ -88,7 +88,8 @@ def update_forecasts_30d():
                     if f_date in real_forecasts:
                         data = real_forecasts[f_date]
                         source = "api"
-                        tmin, tmax = data["tmin"], data["tmax"]
+                        tmin = float(data["tmin"]) if data["tmin"] is not None else 10.0
+                        tmax = float(data["tmax"]) if data["tmax"] is not None else 30.0
                         rain_val = data["rain"] if data["rain"] is not None else 0.0
                         tmean = data["tmean"] if data["tmean"] is not None else 20.0
                         et = data["et"] if data.get("et") is not None else (tmean / 5.0)

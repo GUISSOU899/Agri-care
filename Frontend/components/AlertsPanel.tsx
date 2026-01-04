@@ -120,9 +120,10 @@ export default function AlertsPanel({ regionId, cropId }: AlertsPanelProps) {
             </div>
 
             {alerts.length === 0 && !loading ? (
-                <div className="flex flex-col items-center justify-center p-6 text-gray-400">
-                    <CheckCircle size={32} className="mb-2 text-green-100" />
-                    <p className="text-sm">No active alerts for this selection.</p>
+                <div className="flex flex-col items-center justify-center p-6 text-green-600 bg-green-50 rounded-lg border border-green-100/50">
+                    <CheckCircle size={32} className="mb-2" />
+                    <p className="font-semibold text-sm">Conditions optimales</p>
+                    <p className="text-xs text-green-700 mt-1 text-center">Aucune alerte détectée. La météo est favorable pour cette culture.</p>
                 </div>
             ) : (
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
